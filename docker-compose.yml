@@ -1,0 +1,29 @@
+services:
+  agentheon:
+    build: .
+    ports: ["8000:8000"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://agentheon:agentheon@db:5432/agentheon
+      SKILLS_DIRS: skills,examples/skills
+    volumes:
+      - ./skills:/app/skills:ro
+      - ./governance.yaml:/app/governance.yaml:ro
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: agentheon
+      POSTGRES_PASSWORD: agentheon   # change for anything beyond local use
+      POSTGRES_DB: agentheon
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentheon"]
+      interval: 5s
+      retries: 10
+
+volumes:
+  pgdata:
