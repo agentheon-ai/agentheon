@@ -3,6 +3,11 @@
 # definitions: injected into every skill prompt, so every skill uses the same meaning.
 # rules: checked deterministically on every answer. A failing answer gets ONE regeneration with the
 #        violations as feedback; if it still fails, the run fails closed with status "failed".
+#
+# Patterns: note the double backslashes below. A double-quoted YAML scalar unescapes them, so "\b"
+# would arrive as a backspace character and the rule would never match anything. Write "\\b", or
+# single-quote the pattern instead ('\byou should\b'). Agentheon rejects patterns containing
+# control characters when this file loads, so a mistake here is an error and not a silent no-op.
 
 definitions:
   active user: A user with at least one session in the last 28 days.

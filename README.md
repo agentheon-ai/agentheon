@@ -1,5 +1,10 @@
 # Agentheon
 
+[![CI](https://github.com/agentheon-ai/agentheon/actions/workflows/ci.yml/badge.svg)](https://github.com/agentheon-ai/agentheon/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/agentheon.svg)](https://pypi.org/project/agentheon/)
+[![Python](https://img.shields.io/pypi/pyversions/agentheon.svg)](https://pypi.org/project/agentheon/)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
 **A small, governed, skills-based agent platform.** Write a skill as a markdown file, plug in your
 tools, and get an assistant whose answers are sourced, checked against your rules and fully
 auditable, from a web page, a REST API or as an MCP server.
@@ -23,13 +28,19 @@ One Python process, SQLite by default, no other services required.
 ## Quick start
 
 ```bash
-git clone https://github.com/<you>/agentheon && cd agentheon
+git clone https://github.com/agentheon-ai/agentheon && cd agentheon
 pip install -e ".[search,mcp]"
 cp .env.example .env               # set LLM_MODEL and its API key (or use a local Ollama model)
 cp governance.example.yaml governance.yaml
 agentheon check                    # validates skills, tools and rules
 agentheon serve                    # http://127.0.0.1:8000
 ```
+
+`agentheon check` prints how many skills, tools and rules loaded. If it reports `0 rules` when you
+expected some, nothing is being enforced — check `GOVERNANCE_FILE`.
+
+To try it without API keys, set `AUTH_DEV_MODE=true` in `.env` for keyless admin access on your
+laptop. Set `API_KEYS` and turn it back off before putting Agentheon on a network.
 
 From the terminal:
 
@@ -159,6 +170,11 @@ rules:
 
 Definitions go into every skill prompt. Rules are checked in code, not by the model.
 
+Note the double backslashes. A double-quoted YAML scalar unescapes them, so `"\b"` would reach the
+regex as a backspace character and the rule would quietly never match. Write `"\\b"`, or
+single-quote the pattern (`'\byou should\b'`). Agentheon rejects patterns containing control
+characters at load time rather than letting them pass silently.
+
 ---
 
 ## Use it from other systems
@@ -220,6 +236,8 @@ All settings are environment variables; see [`.env.example`](.env.example).
 | Variable | Default | Purpose |
 |---|---|---|
 | `LLM_MODEL` | `gpt-4o-mini` | Any LiteLLM model string |
+| `LLM_MAX_TOKENS` | `8192` | Cap per model reply. On thinking models this covers thinking **and** the reply — too low truncates the JSON |
+| `LLM_TEMPERATURE` | empty | Empty means the provider's own default. Claude Sonnet 5, Claude Opus 5 and the Opus 4.7+ family reject a non-default temperature with a 400 |
 | `DATABASE_URL` | `sqlite:///agentheon.db` | Postgres: `postgresql+psycopg://…` (install `.[postgres]`) |
 | `API_KEYS` | empty | `key:user:role,…` with role `user` or `admin` |
 | `AUTH_DEV_MODE` | `false` | Allow keyless access as an admin. Laptop only |
@@ -235,8 +253,17 @@ All settings are environment variables; see [`.env.example`](.env.example).
 ## Deploy
 
 ```bash
-docker compose up --build          # Agentheon + Postgres on http://localhost:8000
+cp .env.example .env                       # set LLM_MODEL, its API key and API_KEYS
+cp governance.example.yaml governance.yaml # compose bind-mounts this file; create it first
+docker compose up --build                  # Agentheon + Postgres on http://localhost:8000
 ```
+
+Create `governance.yaml` before composing up. Compose bind-mounts it, and Docker silently creates a
+*directory* in its place if the file is missing — Agentheon now refuses to start in that case
+rather than running with no rules.
+
+Set `API_KEYS` and leave `AUTH_DEV_MODE=false`; the compose file passes your `.env` straight
+through, and `AUTH_DEV_MODE=true` would expose keyless admin access.
 
 For more than one replica: point every replica at the same Postgres, and set `RUN_SCHEDULER=true`
 on exactly one of them. Put Agentheon behind your usual reverse proxy for TLS. If you want SSO,

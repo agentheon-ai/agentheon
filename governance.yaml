@@ -1,0 +1,32 @@
+# Copy to governance.yaml (or point GOVERNANCE_FILE at your own file).
+#
+# definitions: injected into every skill prompt, so every skill uses the same meaning.
+# rules: checked deterministically on every answer. A failing answer gets ONE regeneration with the
+#        violations as feedback; if it still fails, the run fails closed with status "failed".
+#
+# Patterns: note the double backslashes below. A double-quoted YAML scalar unescapes them, so "\b"
+# would arrive as a backspace character and the rule would never match anything. Write "\\b", or
+# single-quote the pattern instead ('\byou should\b'). Agentheon rejects patterns containing
+# control characters when this file loads, so a mistake here is an error and not a silent no-op.
+
+definitions:
+  active user: A user with at least one session in the last 28 days.
+  growth rate: (current period - previous period) / previous period, shown as a percentage.
+
+rules:
+  - id: no_investment_advice
+    type: forbid
+    pattern: "(?i)\\byou should (buy|sell|short)\\b"
+    message: Do not give buy or sell recommendations.
+
+  - id: cite_sources
+    type: require_sources
+    message: Cite at least one source returned by a tool.
+    skills: [web_research, release_tracker]   # optional; omit to apply to every skill
+
+  - id: no_absolute_claims
+    type: forbid
+    pattern: "(?i)\\b(guaranteed|100% certain)\\b"
+    message: Avoid absolute claims; state uncertainty instead.
+
+

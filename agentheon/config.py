@@ -49,6 +49,10 @@ def _api_keys(value: str | None) -> dict[str, tuple[str, str]]:
 @dataclass(frozen=True)
 class Settings:
     llm_model: str = "gpt-4o-mini"
+    # Unset means "use the provider's own default". Recent reasoning models reject a non-default
+    # temperature outright, so this is only sent when you ask for it.
+    llm_temperature: float | None = None
+    llm_max_tokens: int = 8192
     database_url: str = "sqlite:///agentheon.db"
     skills_dirs: list[Path] = field(default_factory=lambda: [Path("skills")])
     include_builtin_skills: bool = True
@@ -72,6 +76,8 @@ class Settings:
         env = os.environ.get
         return cls(
             llm_model=env("LLM_MODEL", cls.llm_model),
+            llm_temperature=float(env("LLM_TEMPERATURE")) if env("LLM_TEMPERATURE") else None,
+            llm_max_tokens=int(env("LLM_MAX_TOKENS", "8192")),
             database_url=env("DATABASE_URL", cls.database_url),
             skills_dirs=[Path(p) for p in _list(env("SKILLS_DIRS", "skills"))],
             include_builtin_skills=_bool(env("INCLUDE_BUILTIN_SKILLS"), True),

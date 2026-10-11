@@ -8,13 +8,22 @@ version = "0.1.0"
 description = "A small, governed, skills-based agent platform. Skills are markdown files; answers are sourced, checked and auditable."
 readme = "README.md"
 license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 requires-python = ">=3.11"
-authors = [{ name = "Agentheon contributors" }]
+authors = [{ name = "Sanika" }]
+maintainers = [{ name = "Sanika" }]
 keywords = ["agents", "llm", "skills", "mcp", "governance"]
 classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
   "Programming Language :: Python :: 3",
-  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Framework :: FastAPI",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Software Development :: Libraries :: Application Frameworks",
+  "Typing :: Typed",
 ]
 dependencies = [
   "fastapi>=0.110",
@@ -31,11 +40,22 @@ mcp = ["mcp>=1.2"]
 postgres = ["psycopg[binary]>=3.1"]
 dev = ["pytest>=8", "pytest-asyncio>=0.23", "ruff>=0.5"]
 
+[project.urls]
+Homepage = "https://github.com/agentheon-ai/agentheon"
+Repository = "https://github.com/agentheon-ai/agentheon"
+Issues = "https://github.com/agentheon-ai/agentheon/issues"
+Changelog = "https://github.com/agentheon-ai/agentheon/blob/main/CHANGELOG.md"
+Documentation = "https://github.com/agentheon-ai/agentheon/blob/main/docs/ARCHITECTURE.md"
+
 [project.scripts]
 agentheon = "agentheon.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["agentheon"]
+
+[tool.hatch.build.targets.sdist]
+include = ["agentheon", "examples", "tests", "docs", "README.md", "LICENSE", "NOTICE", "CHANGELOG.md",
+           "governance.example.yaml", ".env.example", "pyproject.toml"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

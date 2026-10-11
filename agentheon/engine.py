@@ -26,7 +26,7 @@ from .config import Settings
 from .db import now, runs
 from .governance import Policy, ground_sources
 from .knowledge import Knowledge
-from .llm import LLM, LLMOutputError, complete_json
+from .llm import LLM, LLMOutputError, complete_json, parse_json
 from .skills import Skill, SkillRegistry
 from .tools import ToolError, ToolRegistry
 
@@ -35,6 +35,10 @@ log = logging.getLogger("agentheon")
 Emit = Callable[[str, dict], Awaitable[None]]
 MAX_SKILLS_PER_QUESTION = 3
 _TAG = re.compile(r"(?<![\w@])@([a-z][a-z0-9_]{1,63})\b")
+_RETRY_TAIL = re.compile(r"\s*LiteLLM Retried:.*$", re.DOTALL)  # litellm appends its own retry count
+# Provider errors are stored in the runs table and returned to whoever asked, so scrub anything
+# key-shaped before it gets there. Most providers mask the key themselves; this does not rely on it.
+_SECRET = re.compile(r"(?i)\b(?:sk|pk|rk|api)[-_][A-Za-z0-9_\-]{8,}|\bBearer\s+[A-Za-z0-9._\-]{8,}")
 
 
 async def _no_emit(event: str, data: dict) -> None:
@@ -54,6 +58,57 @@ class SkillOutcome:
     violations: list[str] = field(default_factory=list)
     dropped_sources: list[str] = field(default_factory=list)
     regenerated: bool = False
+
+
+def retry_feedback(violations: list[str], cited: list[str], observed: list[str]) -> str:
+    """Tell a rejected skill what was wrong *and* how to fix it.
+
+    A bare list of violations is not enough for smaller models. Told only to "cite at least one
+    source returned by a tool", they rewrite the prose and leave the `sources` array empty again,
+    burning the single regeneration and failing the run. The engine already knows every source the
+    tools returned, so naming the field and listing those sources turns a guess into a copy.
+    """
+    parts = ["Your answer was rejected by the compliance gate:"]
+    parts += [f"- {v}" for v in violations]
+    if any("source" in v.lower() for v in violations):
+        if observed:
+            parts += [
+                "",
+                f'The "sources" field of your reply was {json.dumps(cited)}. These are the only '
+                "sources you may cite, copied exactly from your own tool results:",
+            ]
+            parts += [f"- {s}" for s in dict.fromkeys(observed)]
+            parts.append('Put the ones you relied on in the "sources" array itself — a URL written '
+                         "only in the answer text does not count.")
+        else:
+            parts += ["", "No tool has returned a source yet. Call a tool that returns one before "
+                          "answering."]
+    parts.append("Fix every point and answer again. You may call tools first.")
+    return "\n".join(parts)
+
+
+def describe_failure(exc: Exception) -> str:
+    """Explain a crashed run in terms of what actually went wrong.
+
+    Model-provider errors are the common case, and the provider's own wording is what makes them
+    actionable. A billing problem, an unknown model name and a revoked key are three different
+    fixes, so reporting all of them as "check LLM_MODEL and its API key" sends people to look at
+    the wrong thing. Anything that is not a provider error stays vague on purpose: it is a bug in
+    us, the traceback is in the log, and the person asking the question cannot act on it.
+    """
+    name = type(exc).__name__
+    if "litellm" not in type(exc).__module__:
+        return f"{name} during the run. Details are in the server log."
+    detail = _RETRY_TAIL.sub("", str(exc)).strip()
+    try:  # providers nest the useful sentence inside a JSON error envelope
+        error = parse_json(detail).get("error")
+    except LLMOutputError:
+        error = None
+    if isinstance(error, dict) and error.get("message"):
+        detail = str(error["message"])
+    if not detail:
+        return f"{name} from the model provider. Details are in the server log."
+    return f"{name} from the model provider: {_SECRET.sub('[redacted]', detail)[:400]}"
 
 
 def result(status: str, **fields) -> dict:
@@ -114,9 +169,7 @@ class Engine:
             outcome = result("failed", error=f"Timed out after {self.settings.run_timeout_seconds}s")
         except Exception as exc:
             log.exception("Run %s crashed", run_id)
-            hint = " Check LLM_MODEL and its API key." if "litellm" in type(exc).__module__ else ""
-            message = f"{type(exc).__name__} during the run.{hint} Details are in the server log."
-            outcome = result("failed", error=message)
+            outcome = result("failed", error=describe_failure(exc))
         outcome["run_id"] = run_id
         self._record_finish(run_id, outcome)
         await emit("result", outcome)
@@ -285,7 +338,10 @@ class Engine:
                 if not answer:
                     violations.append("[empty] The answer is empty.")
                 if skill.require_sources and not kept:
-                    violations.append("[grounding] Cite at least one source returned by a tool.")
+                    # worded so it reads differently from a governance require_sources rule, which
+                    # fires on the same fact and otherwise prints an identical sentence
+                    violations.append(f"[grounding] Skill {skill.name!r} is set to require_sources "
+                                      "and this answer cites none.")
                 out.dropped_sources = dropped
                 if not violations:
                     out.status, out.answer, out.sources = "succeeded", answer, kept
@@ -298,10 +354,8 @@ class Engine:
                     return out
                 out.regenerated = True
                 await emit("gate_retry", {"skill": skill.name, "violations": violations})
-                messages.append({"role": "user", "content": (
-                    "Your answer was rejected by the compliance gate:\n"
-                    + "\n".join(f"- {v}" for v in violations)
-                    + "\nFix every point and answer again. You may call tools first.")})
+                messages.append({"role": "user",
+                                 "content": retry_feedback(violations, cited, out.observed)})
             else:
                 messages.append({"role": "user", "content": "Unknown action. Use tool, answer or ask."})
 

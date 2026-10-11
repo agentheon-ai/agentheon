@@ -16,12 +16,43 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
-      - run: pip install -e ".[dev,mcp]"
+      - run: pip install -e ".[dev,mcp,search]"
       - run: ruff check .
       - run: pytest -q
+      # The packaged artifact must contain the builtin skills and the web page, not just the code.
+      - run: pip install build && python -m build
+      - run: |
+          python - <<'PY'
+          import pathlib, sys, zipfile
+          wheel = next(pathlib.Path("dist").glob("*.whl"))
+          names = zipfile.ZipFile(wheel).namelist()
+          required = [
+              "agentheon/builtin_skills/calculator/SKILL.md",
+              "agentheon/builtin_skills/web_research/SKILL.md",
+              "agentheon/static/index.html",
+              "agentheon/py.typed",
+          ]
+          missing = [n for n in required if n not in names]
+          if missing:
+              sys.exit(f"{wheel.name} is missing: {missing}")
+          print(f"{wheel.name} contains all packaged data files")
+          PY
 
   docker:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - run: docker build -t agentheon .
+      # A container that boots but has no skills is not a working image.
+      - run: |
+          docker run -d --name ah -p 8000:8000 agentheon
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8000/api/v1/ready >/dev/null 2>&1; then break; fi
+            sleep 2
+          done
+          if ! curl -fsS http://127.0.0.1:8000/api/v1/ready | tee /dev/stderr | grep -q '"status":"ok"'; then
+            echo "::error::/api/v1/ready did not report ok; container logs follow"
+            docker logs ah
+            exit 1
+          fi
+          docker rm -f ah

@@ -15,7 +15,7 @@ Thanks for helping. The project's main goal is to stay small and readable, so pl
 ## Workflow
 
 ```bash
-pip install -e ".[dev]"
+pip install -e ".[dev,mcp,search]"
 pytest -q
 ruff check .
 ```
@@ -23,6 +23,19 @@ ruff check .
 1. Open an issue first for anything bigger than a bug fix.
 2. Keep pull requests focused; explain the "why" in the description.
 3. Update the README when you change configuration, endpoints or the result format.
+4. Add an entry under `## [Unreleased]` in `CHANGELOG.md`.
+
+## Releasing
+
+Maintainers only. Bump `version` in `pyproject.toml`, move the `## [Unreleased]` entries under a
+new version heading in `CHANGELOG.md`, then tag:
+
+```bash
+git tag v0.1.1 && git push origin v0.1.1
+```
+
+The release workflow checks the tag matches `pyproject.toml`, runs the tests, and publishes to PyPI
+through trusted publishing — no API token is stored in the repository.
 
 ## Contributing a skill or tool pack
 

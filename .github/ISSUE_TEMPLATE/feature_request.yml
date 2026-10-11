@@ -1,0 +1,46 @@
+name: Feature request
+description: Suggest a change to the platform.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Agentheon's goal is to stay small and readable. Changes that only help one domain usually
+        belong in a skill or a tool pack rather than in the platform — see
+        [CONTRIBUTING.md](https://github.com/agentheon-ai/agentheon/blob/main/CONTRIBUTING.md).
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What you are trying to do, and where Agentheon gets in the way.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like instead
+    validations:
+      required: true
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Where does this belong?
+      options:
+        - A change to the platform itself
+        - A new builtin tool
+        - An example skill or tool pack
+        - Documentation
+        - Not sure
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Project constraints
+      options:
+        - label: This does not require a new always-on service (or it sits behind an optional extra).
+        - label: This keeps the platform domain-agnostic.

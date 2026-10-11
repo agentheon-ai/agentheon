@@ -128,7 +128,14 @@ def main() -> None:
     mcp.set_defaults(func=cmd_mcp)
 
     args = parser.parse_args()
-    args.func(args)
+    from .governance import PolicyError
+
+    try:
+        args.func(args)
+    except PolicyError as exc:
+        sys.exit(f"Governance error: {exc}")
+    except ModuleNotFoundError as exc:
+        sys.exit(f"Could not import a tool pack from TOOL_PACKS: {exc}")
 
 
 if __name__ == "__main__":

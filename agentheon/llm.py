@@ -12,22 +12,38 @@ class LLM(Protocol):
 
 
 class LiteLLMClient:
-    """Examples of LLM_MODEL: gpt-4o-mini, anthropic/claude-sonnet-4-5, ollama/llama3.1, azure/<deployment>."""
+    """Examples of LLM_MODEL: gpt-4o-mini, anthropic/claude-sonnet-5, ollama/llama3.1, azure/<deployment>.
 
-    def __init__(self, model: str, temperature: float = 0.2, timeout: float = 120):
+    Two deliberate choices keep this working across providers:
+
+    - `temperature` is only sent when LLM_TEMPERATURE is set. Recent reasoning models (Claude
+      Sonnet 5, Claude Opus 5 and the Opus 4.7+ family) reject a non-default temperature with a
+      400, and `drop_params` does not help because temperature is a valid parameter for the
+      provider in general. Leaving it unset gets each provider's own default.
+    - `max_tokens` is always sent and defaults generously. On models that think before answering,
+      it caps thinking *and* the reply together, so a tight budget truncates the JSON this
+      platform depends on.
+    """
+
+    def __init__(self, model: str, temperature: float | None = None, max_tokens: int = 8192,
+                 timeout: float = 120):
         self.model = model
         self.temperature = temperature
+        self.max_tokens = max_tokens
         self.timeout = timeout
 
     async def complete(self, messages: list[dict], *, json_mode: bool = False) -> str:
         import litellm
 
         litellm.drop_params = True  # silently skip params a provider does not support
-        kwargs = {"response_format": {"type": "json_object"}} if json_mode else {}
+        kwargs: dict = {"max_tokens": self.max_tokens}
+        if json_mode:
+            kwargs["response_format"] = {"type": "json_object"}
+        if self.temperature is not None:
+            kwargs["temperature"] = self.temperature
         response = await litellm.acompletion(
             model=self.model,
             messages=messages,
-            temperature=self.temperature,
             timeout=self.timeout,
             num_retries=2,
             **kwargs,

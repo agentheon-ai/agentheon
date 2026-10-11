@@ -7,6 +7,9 @@ services:
       DATABASE_URL: postgresql+psycopg://agentheon:agentheon@db:5432/agentheon
       SKILLS_DIRS: skills,examples/skills
     volumes:
+      # Run `cp governance.example.yaml governance.yaml` before composing up. Docker creates a
+      # directory in place of a bind-mounted file that does not exist, and Agentheon refuses to
+      # start rather than run with no governance rules at all.
       - ./skills:/app/skills:ro
       - ./governance.yaml:/app/governance.yaml:ro
     depends_on:

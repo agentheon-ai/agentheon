@@ -51,7 +51,9 @@ def build(settings: Settings | None = None, llm: LLM | None = None) -> Platform:
 
     policy = load_policy(settings.governance_file)
     knowledge = Knowledge(db, settings.behavioral_ttl_days, settings.web_ttl_days)
-    engine = Engine(settings=settings, llm=llm or LiteLLMClient(settings.llm_model), skills=skills,
+    client = llm or LiteLLMClient(settings.llm_model, temperature=settings.llm_temperature,
+                                  max_tokens=settings.llm_max_tokens)
+    engine = Engine(settings=settings, llm=client, skills=skills,
                     tools=tools, policy=policy, knowledge=knowledge, db=db)
     watches = WatchService(db, engine, settings.notify_webhook_url)
 
