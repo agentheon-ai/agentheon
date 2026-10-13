@@ -491,6 +491,19 @@
   .watch-meta { color: var(--ink-3); font-size: 12px; }
   .watch-row { display: flex; gap: 5px; flex-wrap: wrap; }
 
+  #learned { max-height: 460px; overflow-y: auto; }
+
+  .note {
+    border-top: 1px solid var(--line);
+    padding-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 12.5px;
+  }
+
+  .note-meta { display: flex; gap: 7px; align-items: baseline; flex-wrap: wrap; color: var(--ink-3); font-size: 12px; }
+
   .muted { color: var(--ink-3); font-size: 12.5px; }
 
   /* ───────────────────────── dialog ───────────────────────── */
@@ -561,6 +574,10 @@
     <section class="card">
       <p class="eyebrow">Watches</p>
       <div id="watches"><span class="muted">None yet. Use “Watch this” on an answer.</span></div>
+    </section>
+    <section class="card">
+      <p class="eyebrow">Learned</p>
+      <div id="learned"><span class="muted">Nothing yet. Notes appear after a successful answer.</span></div>
     </section>
   </aside>
 </main>
@@ -774,6 +791,7 @@ async function loadSidebar() {
     });
     renderExamples(skills.map((s) => s.name));
     loadWatches();
+    loadLearned();
   } catch (err) {
     $("skills").innerHTML = `<span class="muted">Sign in to see skills: ${esc(err.message)}</span>`;
   }
@@ -831,6 +849,37 @@ async function loadWatches() {
       };
     });
     $("watches").appendChild(node);
+  }
+}
+
+function expiresIn(expiresAt) {
+  const hours = (expiresAt - Date.now() / 1000) / 3600;
+  if (hours < 1) return "expires within the hour";
+  if (hours < 48) return `expires in ${Math.round(hours)}h`;
+  return `expires in ${Math.round(hours / 24)}d`;
+}
+
+async function loadLearned() {
+  let list;
+  try {
+    list = await api("/api/v1/knowledge");
+  } catch {
+    return;
+  }
+  if (!list.length) {
+    $("learned").innerHTML = '<span class="muted">Nothing yet. Notes appear after a successful answer.</span>';
+    return;
+  }
+  $("learned").innerHTML = "";
+  for (const n of list) {
+    $("learned").appendChild(el(`<div class="note">
+      <div>${esc(n.text)}</div>
+      <div class="note-meta">
+        <span class="chip ${n.kind === "data" ? "accent" : ""}">${esc(n.kind)}</span>
+        ${n.skill ? `<span>${esc(n.skill)}</span>` : ""}
+        <span>${n.shared ? "shared" : "only you"} · ${expiresIn(n.expires_at)}</span>
+      </div>
+    </div>`));
   }
 }
 
@@ -1056,6 +1105,7 @@ $("ask").onsubmit = async (event) => {
   } finally {
     $("send").disabled = false;
     loadWatches();
+    loadLearned();
   }
 };
 

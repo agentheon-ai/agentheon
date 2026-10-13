@@ -1,8 +1,7 @@
 # Agentheon
 
 [![CI](https://github.com/agentheon-ai/agentheon/actions/workflows/ci.yml/badge.svg)](https://github.com/agentheon-ai/agentheon/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/agentheon.svg)](https://pypi.org/project/agentheon/)
-[![Python](https://img.shields.io/pypi/pyversions/agentheon.svg)](https://pypi.org/project/agentheon/)
+[![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue.svg)](pyproject.toml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 **A small, governed, skills-based agent platform.** Write a skill as a markdown file, plug in your
@@ -190,6 +189,7 @@ Authenticate with `Authorization: Bearer <key>` (keys come from `API_KEYS`).
 | `GET /api/v1/runs` | Your recent runs (admins see all) |
 | `GET /api/v1/skills` | Installed skills |
 | `POST/GET /api/v1/watches`, `…/{id}/run-now`, `/pause`, `/resume`, `DELETE …/{id}` | Watches |
+| `GET /api/v1/knowledge` | Learned notes your questions can draw on: shared ones plus your own |
 | `GET /api/v1/ready` | Health: database, skills, tools, load problems (no auth) |
 
 Interactive docs: `http://127.0.0.1:8000/docs`.
@@ -226,6 +226,8 @@ After a successful run the model proposes up to three reusable notes:
 Emails, phone numbers, card and ID numbers are redacted before storage. Notes are recalled into
 the prompt as "may be outdated; verify". Set `private: true` on a question to neither read nor
 write notes, or `LEARNING_ENABLED=false` to turn learning off.
+
+The web page lists the current notes under "Learned", with each note's kind, skill and expiry.
 
 ---
 

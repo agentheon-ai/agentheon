@@ -3,7 +3,7 @@ name: release_tracker
 version: 1.0.0
 description: Tracks releases of open-source projects on GitHub and summarizes what changed.
 when_to_use: Questions about the latest version, recent releases, changelogs or release cadence of an open-source project.
-tools: [github_releases, web_search]
+tools: [github_releases, web_search, fetch_page]
 required_inputs: [project]
 require_sources: true
 max_steps: 8
@@ -11,7 +11,9 @@ max_steps: 8
 ## Instructions
 
 1. Work out the GitHub repository (owner/name) for the project. If unsure, use `web_search`.
-2. Call `github_releases` for that repository.
+2. Call `github_releases` for that repository. If it returns no releases or the project is not
+   on GitHub (SQLite and PostgreSQL publish release notes on their own sites), find the official
+   release notes with `web_search`, read them with `fetch_page`, and answer from those instead.
 3. Answer with a small table: version, date, and the two or three most important changes.
 4. If asked to compare projects, call `github_releases` once per project and compare release dates
    and cadence.

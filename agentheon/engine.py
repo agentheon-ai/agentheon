@@ -259,7 +259,9 @@ class Engine:
             '{"status": "out_of_scope", "reason": "<why no skill fits>"}\n'
             '{"status": "needs_user_input", "question": "<what to ask the user>"}\n'
             f"Choose the fewest skills that fully answer (max {MAX_SKILLS_PER_QUESTION}). Fill each chosen "
-            "skill's required_inputs from the question. If one cannot be determined, ask. Never invent values."
+            "skill's required_inputs from the question, in the user's own words: the skill works out "
+            "identifiers, URLs and other specifics itself. Ask only when the question does not mention "
+            "an input at all. Never invent values."
         )
         try:
             plan = await complete_json(self.llm, [{"role": "system", "content": system},

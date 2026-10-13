@@ -8,6 +8,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- "Learned" panel on the web page and `GET /api/v1/knowledge`, listing the unexpired notes a
+  user's questions can draw on (shared notes plus their own) with kind, skill and expiry.
 - `py.typed` marker, so type checkers use Agentheon's annotations downstream.
 - `NOTICE` file and the Apache 2.0 appendix with the copyright line filled in.
 - Project URLs, maintainer and trove classifiers in `pyproject.toml`.

@@ -118,3 +118,17 @@ def test_watch_api_and_ownership(make_platform):
     assert [w["id"] for w in client.get("/api/v1/watches", headers=alice).json()] == [created["id"]]
     assert client.get("/api/v1/watches", headers=bob).json() == []
     assert client.delete(f"/api/v1/watches/{created['id']}", headers=alice).status_code == 204
+
+
+def test_knowledge_lists_shared_and_own_notes_only(make_platform):
+    platform, _ = make_platform(auth_dev_mode=False,
+                                api_keys={"key-a": ("alice", "user"), "key-b": ("bob", "user")})
+    platform.knowledge.remember("Pro costs 20.", "data", skill="docs", user_id=None, ttl_days=1)
+    platform.knowledge.remember("Alice likes tables.", "behavioral", skill=None, user_id="alice", ttl_days=1)
+    platform.knowledge.remember("Old fact.", "data", skill="docs", user_id=None, ttl_days=-1)
+    client = TestClient(create_app(platform))
+    assert client.get("/api/v1/knowledge").status_code == 401
+    alice = client.get("/api/v1/knowledge", headers={"Authorization": "Bearer key-a"}).json()
+    assert {n["text"]: n["shared"] for n in alice} == {"Pro costs 20.": True, "Alice likes tables.": False}
+    bob = client.get("/api/v1/knowledge", headers={"Authorization": "Bearer key-b"}).json()
+    assert [n["text"] for n in bob] == ["Pro costs 20."]

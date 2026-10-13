@@ -233,6 +233,12 @@ def create_app(platform: Platform | None = None) -> FastAPI:
         own_watch(watch_id, user)
         platform.watches.delete(watch_id)
 
+    # ------------------------------------------------------------ knowledge
+
+    @app.get("/api/v1/knowledge")
+    def list_knowledge(limit: int = 50, user: User = Depends(current_user)):
+        return platform.knowledge.list(user.id, limit=max(1, min(limit, 200)))
+
     # ------------------------------------------------------------ admin
 
     @app.post("/api/v1/admin/knowledge/purge")

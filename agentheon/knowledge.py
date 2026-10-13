@@ -86,6 +86,28 @@ class Knowledge:
         scored = [(len(wanted & _words(text)), text) for text in rows]
         return [text for score, text in sorted(scored, key=lambda x: -x[0]) if score > 0][:limit]
 
+    def list(self, user_id: str, limit: int = 50) -> list[dict]:
+        """Unexpired learnings this user's questions can draw on, newest first."""
+        query = (
+            select(learnings.c.id, learnings.c.text, learnings.c.kind, learnings.c.skill,
+                   learnings.c.user_id, learnings.c.created_at, learnings.c.expires_at)
+            .where(
+                and_(
+                    learnings.c.expires_at > now(),
+                    or_(learnings.c.user_id.is_(None), learnings.c.user_id == user_id),
+                )
+            )
+            .order_by(learnings.c.created_at.desc())
+            .limit(limit)
+        )
+        with self.engine.connect() as conn:
+            rows = conn.execute(query).mappings().all()
+        return [
+            {"id": r["id"], "text": r["text"], "kind": r["kind"], "skill": r["skill"],
+             "shared": r["user_id"] is None, "created_at": r["created_at"], "expires_at": r["expires_at"]}
+            for r in rows
+        ]
+
     def purge_expired(self) -> int:
         with self.engine.begin() as conn:
             return conn.execute(delete(learnings).where(learnings.c.expires_at <= now())).rowcount
